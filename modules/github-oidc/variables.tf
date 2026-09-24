@@ -38,3 +38,13 @@ variable "state_kms_key_arn" {
   description = "KMS key encrypting the state bucket."
   type        = string
 }
+
+variable "github_ids" {
+  description = "Numeric GitHub IDs, needed when the org uses immutable OIDC subject claims (repo:<owner>@<id>/<repo>@<id>). Null = legacy subjects only."
+  type = object({
+    org        = number
+    infra_repo = number
+    app_repo   = number
+  })
+  default = null
+}

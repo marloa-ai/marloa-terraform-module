@@ -21,8 +21,18 @@ locals {
   account_id = data.aws_caller_identity.current.account_id
   region     = data.aws_region.current.region
   name       = "${var.project}-${var.environment}"
-  infra      = "repo:${var.github_org}/${var.infra_repo}"
-  app        = "repo:${var.github_org}/${var.app_repo}"
+
+  # Subject prefixes per repo. Orgs with immutable OIDC subjects issue
+  # repo:<owner>@<owner_id>/<repo>@<repo_id>:...; the legacy form
+  # repo:<owner>/<repo>:... is always accepted as well.
+  infra = compact([
+    "repo:${var.github_org}/${var.infra_repo}",
+    var.github_ids == null ? "" : "repo:${var.github_org}@${var.github_ids.org}/${var.infra_repo}@${var.github_ids.infra_repo}",
+  ])
+  app = compact([
+    "repo:${var.github_org}/${var.app_repo}",
+    var.github_ids == null ? "" : "repo:${var.github_org}@${var.github_ids.org}/${var.app_repo}@${var.github_ids.app_repo}",
+  ])
 }
 
 resource "aws_iam_openid_connect_provider" "github" {
@@ -32,10 +42,10 @@ resource "aws_iam_openid_connect_provider" "github" {
 
 data "aws_iam_policy_document" "trust" {
   for_each = {
-    plan     = ["${local.infra}:pull_request", "${local.infra}:ref:refs/heads/main"]
-    apply    = ["${local.infra}:environment:${var.environment}"]
-    deploy   = ["${local.app}:environment:${var.environment}"]
-    ecr_push = ["${local.app}:ref:refs/heads/main"]
+    plan     = flatten([for p in local.infra : ["${p}:pull_request", "${p}:ref:refs/heads/main"]])
+    apply    = [for p in local.infra : "${p}:environment:${var.environment}"]
+    deploy   = [for p in local.app : "${p}:environment:${var.environment}"]
+    ecr_push = [for p in local.app : "${p}:ref:refs/heads/main"]
   }
 
   statement {

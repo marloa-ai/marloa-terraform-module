@@ -82,6 +82,7 @@ Pin `ref` to a released tag (`github-oidc-vX.Y.Z`); never a branch.
 | state\_bucket\_arn | Terraform state bucket the plan role may read and lock. | `string` | n/a | yes |
 | state\_kms\_key\_arn | KMS key encrypting the state bucket. | `string` | n/a | yes |
 | ecr\_repository\_arns | ECR repositories the app repo may push to. Empty = no push role in this account. | `list(string)` | `[]` | no |
+| github\_ids | Numeric GitHub IDs, needed when the org uses immutable OIDC subject claims (repo:<owner>@<id>/<repo>@<id>). Null = legacy subjects only. | <pre>object({<br/>    org        = number<br/>    infra_repo = number<br/>    app_repo   = number<br/>  })</pre> | `null` | no |
 
 ## Outputs
 
