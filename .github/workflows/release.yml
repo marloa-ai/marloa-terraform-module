@@ -1,10 +1,8 @@
 name: Release modules
 
-# On every merge to main:
-#   1. tag each changed module as <module>-vX.Y.Z from the Conventional Commit
-#      messages (squash-merge PR titles) that touched it
-#   2. publish every tag not yet in S3 as a zip, using GitHub OIDC (no tokens)
-# Run manually to re-publish any missing tags.
+# On every merge to main, tag each changed module as <module>-vX.Y.Z based on
+# the Conventional Commit messages (squash-merge PR titles) that touched it.
+# Consumers reference the tag directly from GitHub (the repo is public).
 
 on:
   push:
@@ -15,19 +13,13 @@ on:
 
 permissions:
   contents: write
-  id-token: write
 
 concurrency:
   group: release-modules
   cancel-in-progress: false
 
-env:
-  AWS_REGION: ap-south-1
-  MODULES_BUCKET: marloa-terraform-modules-168943560791
-  PUBLISH_ROLE_ARN: arn:aws:iam::168943560791:role/gha-modules-publish
-
 jobs:
-  release:
+  tag:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -40,15 +32,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Tag changed modules
-        if: github.event_name == 'push'
         run: bash .github/scripts/release-tags.sh
-
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
-        with:
-          aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ env.PUBLISH_ROLE_ARN }}
-          role-session-name: gha-modules-publish
-
-      - name: Publish module zips to S3
-        run: bash .github/scripts/publish-modules.sh "$MODULES_BUCKET"

@@ -24,7 +24,7 @@ Reference a released tag — never a branch or an unpinned ref:
 
 ```hcl
 module "vpc" {
-  source = "git::ssh://git@github.com/marloa-ai/marloa-terraform-module.git//modules/vpc?ref=vpc-v0.1.0"
+  source = "git::https://github.com/marloa-ai/marloa-terraform-module.git//modules/vpc?ref=vpc-v0.1.0"
   # ...
 }
 ```
