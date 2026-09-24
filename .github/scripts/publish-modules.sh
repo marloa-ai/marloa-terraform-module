@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Upload every released module tag to S3 as a zip, so live roots can use
-#   source = "s3::https://s3.ap-south-1.amazonaws.com/<bucket>/<module>/<tag>.zip"
+#   source = "s3::https://<bucket>.s3.ap-south-1.amazonaws.com/<module>/<tag>.zip"
 # with the AWS credentials they already have (GitHub OIDC). Idempotent and
 # append-only: tags already in the bucket are skipped, never overwritten.
 #
