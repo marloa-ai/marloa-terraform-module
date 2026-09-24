@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  TF_VERSION: 1.16.4
+
+jobs:
+  checks:
+    name: fmt, validate, lint, docs, security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+
+      - name: terraform validate (every module)
+        run: |
+          for dir in modules/*/; do
+            echo "::group::$dir"
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+            echo "::endgroup::"
+          done
+
+      - uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6 # v4.1.1
+        with:
+          tflint_version: v0.64.0
+
+      - name: tflint
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tflint --init --config="$PWD/.tflint.hcl"
+          tflint --recursive --config="$PWD/.tflint.hcl" --format=compact
+
+      - name: terraform-docs up to date
+        run: |
+          curl -sSL https://github.com/terraform-docs/terraform-docs/releases/download/v0.24.0/terraform-docs-v0.24.0-linux-amd64.tar.gz \
+            | tar xz -C /usr/local/bin terraform-docs
+          for dir in modules/*/; do
+            terraform-docs --config .terraform-docs.yml "$dir"
+          done
+          git diff --exit-code -- 'modules/*/README.md' \
+            || { echo "::error::Module READMEs are stale. Run: for d in modules/*/; do terraform-docs --config .terraform-docs.yml \$d; done"; exit 1; }
+
+      - name: trivy (fail on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+      - name: Release preview
+        if: github.event_name == 'pull_request'
+        run: |
+          # Squash-merge title decides the bump; preview with this branch's commits.
+          bash .github/scripts/release-tags.sh --dry-run

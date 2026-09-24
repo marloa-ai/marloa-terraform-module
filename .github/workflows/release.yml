@@ -1,0 +1,34 @@
+name: Release modules
+
+# On every merge to main, tag each changed module as <module>-vX.Y.Z based on
+# the Conventional Commit messages (squash-merge PR titles) that touched it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "modules/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-modules
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Tag changed modules
+        run: bash .github/scripts/release-tags.sh
