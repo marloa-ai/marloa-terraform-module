@@ -77,21 +77,25 @@ variable "kms_key_arn" {
 variable "alb_security_group_id" {
   description = "ALB security group allowed to reach the tasks."
   type        = string
+  default     = null
 }
 
 variable "alb_arn_suffix" {
   description = "ALB ARN suffix for request-count scaling."
   type        = string
+  default     = null
 }
 
 variable "listener_arn" {
-  description = "ALB listener to attach the routing rule to."
+  description = "ALB listener to attach the routing rule to. Null runs the service without a load balancer."
   type        = string
+  default     = null
 }
 
 variable "listener_rule_priority" {
   description = "Priority of the listener rule (unique per listener)."
   type        = number
+  default     = null
 }
 
 variable "path_patterns" {
@@ -154,9 +158,11 @@ variable "stop_timeout" {
 }
 
 variable "egress_rules" {
-  description = "Outbound TCP rules for the tasks (port, IPv4 CIDR, description)."
+  description = "Outbound rules for the tasks: port (or port..to_port), protocol tcp/udp (default tcp), IPv4 CIDR, description."
   type = list(object({
     port        = number
+    to_port     = optional(number)
+    protocol    = optional(string, "tcp")
     cidr        = string
     description = string
   }))
@@ -165,7 +171,10 @@ variable "egress_rules" {
   ]
 
   validation {
-    condition     = alltrue([for r in var.egress_rules : can(cidrhost(r.cidr, 0)) && r.port > 0 && r.port < 65536])
-    error_message = "Each egress rule needs a valid port and IPv4 CIDR."
+    condition = alltrue([for r in var.egress_rules :
+      can(cidrhost(r.cidr, 0)) && contains(["tcp", "udp"], r.protocol)
+      && r.port > 0 && coalesce(r.to_port, r.port) >= r.port && coalesce(r.to_port, r.port) < 65536
+    ])
+    error_message = "Each egress rule needs protocol tcp/udp, a valid port range and an IPv4 CIDR."
   }
 }

@@ -74,24 +74,24 @@ Pin `ref` to a released tag (`ecs-service-vX.Y.Z`); never a branch.
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
-| alb\_arn\_suffix | ALB ARN suffix for request-count scaling. | `string` | n/a | yes |
-| alb\_security\_group\_id | ALB security group allowed to reach the tasks. | `string` | n/a | yes |
 | cluster\_arn | ECS cluster ARN. | `string` | n/a | yes |
 | cluster\_name | ECS cluster name. | `string` | n/a | yes |
 | image | Initial image URI. Later deploys replace it from CI. | `string` | n/a | yes |
 | kms\_key\_arn | Key for log group encryption and secret decryption. | `string` | n/a | yes |
-| listener\_arn | ALB listener to attach the routing rule to. | `string` | n/a | yes |
-| listener\_rule\_priority | Priority of the listener rule (unique per listener). | `number` | n/a | yes |
 | name | Service name, e.g. marloa-staging-api. Also the task family. | `string` | n/a | yes |
 | subnet\_ids | Private subnets for the tasks. | `list(string)` | n/a | yes |
 | vpc\_id | VPC of the service. | `string` | n/a | yes |
+| alb\_arn\_suffix | ALB ARN suffix for request-count scaling. | `string` | `null` | no |
+| alb\_security\_group\_id | ALB security group allowed to reach the tasks. | `string` | `null` | no |
 | container\_port | Port the container listens on. | `number` | `8080` | no |
 | cpu | Task CPU units (1024 = 1 vCPU). | `number` | `512` | no |
 | cpu\_target\_percent | Average CPU to target when scaling. | `number` | `60` | no |
 | desired\_count | Initial task count; autoscaling owns it afterwards. | `number` | `1` | no |
-| egress\_rules | Outbound TCP rules for the tasks (port, IPv4 CIDR, description). | <pre>list(object({<br/>    port        = number<br/>    cidr        = string<br/>    description = string<br/>  }))</pre> | <pre>[<br/>  {<br/>    "cidr": "0.0.0.0/0",<br/>    "description": "HTTPS to AWS APIs and external services",<br/>    "port": 443<br/>  }<br/>]</pre> | no |
+| egress\_rules | Outbound rules for the tasks: port (or port..to\_port), protocol tcp/udp (default tcp), IPv4 CIDR, description. | <pre>list(object({<br/>    port        = number<br/>    to_port     = optional(number)<br/>    protocol    = optional(string, "tcp")<br/>    cidr        = string<br/>    description = string<br/>  }))</pre> | <pre>[<br/>  {<br/>    "cidr": "0.0.0.0/0",<br/>    "description": "HTTPS to AWS APIs and external services",<br/>    "port": 443<br/>  }<br/>]</pre> | no |
 | environment | Plain environment variables. | `map(string)` | `{}` | no |
 | health\_check\_path | Target group health check path. | `string` | `"/health"` | no |
+| listener\_arn | ALB listener to attach the routing rule to. Null runs the service without a load balancer. | `string` | `null` | no |
+| listener\_rule\_priority | Priority of the listener rule (unique per listener). | `number` | `null` | no |
 | log\_retention\_days | CloudWatch log retention in days. | `number` | `30` | no |
 | max\_capacity | Autoscaling maximum task count. | `number` | `2` | no |
 | memory | Task memory in MiB. | `number` | `1024` | no |
@@ -110,6 +110,6 @@ Pin `ref` to a released tag (`ecs-service-vX.Y.Z`); never a branch.
 | log\_group\_name | CloudWatch log group of the tasks. |
 | security\_group\_id | Security group of the tasks. |
 | service\_name | ECS service name. |
-| target\_group\_arn\_suffix | Target group ARN suffix for CloudWatch dimensions. |
+| target\_group\_arn\_suffix | Target group ARN suffix for CloudWatch dimensions (null without a load balancer). |
 | task\_family | Task definition family CI registers revisions under. |
 <!-- END_TF_DOCS -->

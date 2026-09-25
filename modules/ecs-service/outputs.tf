@@ -19,8 +19,8 @@ output "security_group_id" {
 }
 
 output "target_group_arn_suffix" {
-  description = "Target group ARN suffix for CloudWatch dimensions."
-  value       = aws_lb_target_group.this.arn_suffix
+  description = "Target group ARN suffix for CloudWatch dimensions (null without a load balancer)."
+  value       = one(aws_lb_target_group.this[*].arn_suffix)
 }
 
 output "log_group_name" {
