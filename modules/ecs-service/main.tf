@@ -114,13 +114,16 @@ resource "aws_vpc_security_group_ingress_rule" "from_alb" {
 # HTTPS egress is open; every other port is limited to what callers list.
 #trivy:ignore:AVD-AWS-0104
 resource "aws_vpc_security_group_egress_rule" "this" {
-  for_each = { for r in var.egress_rules : "${r.port}-${r.cidr}" => r }
+  # Single-port TCP rules keep their original "<port>-<cidr>" key.
+  for_each = { for r in var.egress_rules :
+    (r.protocol == "tcp" && r.to_port == null ? "${r.port}-${r.cidr}" : "${r.protocol}-${r.port}-${coalesce(r.to_port, r.port)}-${r.cidr}") => r
+  }
 
   security_group_id = aws_security_group.this.id
   cidr_ipv4         = each.value.cidr
-  ip_protocol       = "tcp"
+  ip_protocol       = each.value.protocol
   from_port         = each.value.port
-  to_port           = each.value.port
+  to_port           = coalesce(each.value.to_port, each.value.port)
   description       = each.value.description
 }
 

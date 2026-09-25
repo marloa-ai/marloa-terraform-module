@@ -87,7 +87,7 @@ Pin `ref` to a released tag (`ecs-service-vX.Y.Z`); never a branch.
 | cpu | Task CPU units (1024 = 1 vCPU). | `number` | `512` | no |
 | cpu\_target\_percent | Average CPU to target when scaling. | `number` | `60` | no |
 | desired\_count | Initial task count; autoscaling owns it afterwards. | `number` | `1` | no |
-| egress\_rules | Outbound TCP rules for the tasks (port, IPv4 CIDR, description). | <pre>list(object({<br/>    port        = number<br/>    cidr        = string<br/>    description = string<br/>  }))</pre> | <pre>[<br/>  {<br/>    "cidr": "0.0.0.0/0",<br/>    "description": "HTTPS to AWS APIs and external services",<br/>    "port": 443<br/>  }<br/>]</pre> | no |
+| egress\_rules | Outbound rules for the tasks: port (or port..to\_port), protocol tcp/udp (default tcp), IPv4 CIDR, description. | <pre>list(object({<br/>    port        = number<br/>    to_port     = optional(number)<br/>    protocol    = optional(string, "tcp")<br/>    cidr        = string<br/>    description = string<br/>  }))</pre> | <pre>[<br/>  {<br/>    "cidr": "0.0.0.0/0",<br/>    "description": "HTTPS to AWS APIs and external services",<br/>    "port": 443<br/>  }<br/>]</pre> | no |
 | environment | Plain environment variables. | `map(string)` | `{}` | no |
 | health\_check\_path | Target group health check path. | `string` | `"/health"` | no |
 | listener\_arn | ALB listener to attach the routing rule to. Null runs the service without a load balancer. | `string` | `null` | no |

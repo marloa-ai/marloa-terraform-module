@@ -158,9 +158,11 @@ variable "stop_timeout" {
 }
 
 variable "egress_rules" {
-  description = "Outbound TCP rules for the tasks (port, IPv4 CIDR, description)."
+  description = "Outbound rules for the tasks: port (or port..to_port), protocol tcp/udp (default tcp), IPv4 CIDR, description."
   type = list(object({
     port        = number
+    to_port     = optional(number)
+    protocol    = optional(string, "tcp")
     cidr        = string
     description = string
   }))
@@ -169,7 +171,10 @@ variable "egress_rules" {
   ]
 
   validation {
-    condition     = alltrue([for r in var.egress_rules : can(cidrhost(r.cidr, 0)) && r.port > 0 && r.port < 65536])
-    error_message = "Each egress rule needs a valid port and IPv4 CIDR."
+    condition = alltrue([for r in var.egress_rules :
+      can(cidrhost(r.cidr, 0)) && contains(["tcp", "udp"], r.protocol)
+      && r.port > 0 && coalesce(r.to_port, r.port) >= r.port && coalesce(r.to_port, r.port) < 65536
+    ])
+    error_message = "Each egress rule needs protocol tcp/udp, a valid port range and an IPv4 CIDR."
   }
 }
