@@ -1,4 +1,5 @@
-# Fargate (ARM64) service behind the internal ALB.
+# Fargate (ARM64) service, behind the internal ALB when listener_arn is set
+# (APIs) or without a load balancer (workers such as the voice agent).
 #
 # Terraform owns the task definition shape (env, secrets, sizing, roles). CI
 # owns the image: deploys copy the latest revision, swap the image of the
@@ -10,6 +11,7 @@ data "aws_region" "current" {}
 locals {
   container_name = "app"
   log_group      = "/ecs/${var.cluster_name}/${var.name}"
+  alb            = var.listener_arn != null
 }
 
 resource "aws_cloudwatch_log_group" "this" {
@@ -98,6 +100,8 @@ resource "aws_security_group" "this" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "from_alb" {
+  count = local.alb ? 1 : 0
+
   security_group_id            = aws_security_group.this.id
   referenced_security_group_id = var.alb_security_group_id
   ip_protocol                  = "tcp"
@@ -121,6 +125,8 @@ resource "aws_vpc_security_group_egress_rule" "this" {
 }
 
 resource "aws_lb_target_group" "this" {
+  count = local.alb ? 1 : 0
+
   name                 = var.name
   port                 = var.container_port
   protocol             = "HTTP"
@@ -139,12 +145,14 @@ resource "aws_lb_target_group" "this" {
 }
 
 resource "aws_lb_listener_rule" "this" {
+  count = local.alb ? 1 : 0
+
   listener_arn = var.listener_arn
   priority     = var.listener_rule_priority
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.this.arn
+    target_group_arn = aws_lb_target_group.this[0].arn
   }
 
   condition {
@@ -176,9 +184,9 @@ resource "aws_ecs_task_definition" "this" {
       image       = var.image
       essential   = true
       stopTimeout = var.stop_timeout
-      portMappings = [
+      portMappings = local.alb ? [
         { containerPort = var.container_port, protocol = "tcp" }
-      ]
+      ] : []
       environment = [for k, v in var.environment : { name = k, value = v }]
       secrets     = [for k, v in var.secrets : { name = k, valueFrom = v }]
       logConfiguration = {
@@ -203,7 +211,7 @@ resource "aws_ecs_service" "this" {
   enable_execute_command = true
   propagate_tags         = "SERVICE"
 
-  health_check_grace_period_seconds  = 60
+  health_check_grace_period_seconds  = local.alb ? 60 : null
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
 
@@ -218,10 +226,13 @@ resource "aws_ecs_service" "this" {
     assign_public_ip = false
   }
 
-  load_balancer {
-    target_group_arn = aws_lb_target_group.this.arn
-    container_name   = local.container_name
-    container_port   = var.container_port
+  dynamic "load_balancer" {
+    for_each = local.alb ? [1] : []
+    content {
+      target_group_arn = aws_lb_target_group.this[0].arn
+      container_name   = local.container_name
+      container_port   = var.container_port
+    }
   }
 
   lifecycle {
@@ -257,6 +268,8 @@ resource "aws_appautoscaling_policy" "cpu" {
 }
 
 resource "aws_appautoscaling_policy" "requests" {
+  count = local.alb ? 1 : 0
+
   name               = "${var.name}-requests"
   policy_type        = "TargetTrackingScaling"
   service_namespace  = aws_appautoscaling_target.this.service_namespace
@@ -267,7 +280,28 @@ resource "aws_appautoscaling_policy" "requests" {
     target_value = var.requests_per_target
     predefined_metric_specification {
       predefined_metric_type = "ALBRequestCountPerTarget"
-      resource_label         = "${var.alb_arn_suffix}/${aws_lb_target_group.this.arn_suffix}"
+      resource_label         = "${var.alb_arn_suffix}/${aws_lb_target_group.this[0].arn_suffix}"
     }
   }
+}
+
+# ALB resources became optional (count); keep existing addresses.
+moved {
+  from = aws_vpc_security_group_ingress_rule.from_alb
+  to   = aws_vpc_security_group_ingress_rule.from_alb[0]
+}
+
+moved {
+  from = aws_lb_target_group.this
+  to   = aws_lb_target_group.this[0]
+}
+
+moved {
+  from = aws_lb_listener_rule.this
+  to   = aws_lb_listener_rule.this[0]
+}
+
+moved {
+  from = aws_appautoscaling_policy.requests
+  to   = aws_appautoscaling_policy.requests[0]
 }

@@ -77,21 +77,25 @@ variable "kms_key_arn" {
 variable "alb_security_group_id" {
   description = "ALB security group allowed to reach the tasks."
   type        = string
+  default     = null
 }
 
 variable "alb_arn_suffix" {
   description = "ALB ARN suffix for request-count scaling."
   type        = string
+  default     = null
 }
 
 variable "listener_arn" {
-  description = "ALB listener to attach the routing rule to."
+  description = "ALB listener to attach the routing rule to. Null runs the service without a load balancer."
   type        = string
+  default     = null
 }
 
 variable "listener_rule_priority" {
   description = "Priority of the listener rule (unique per listener)."
   type        = number
+  default     = null
 }
 
 variable "path_patterns" {
